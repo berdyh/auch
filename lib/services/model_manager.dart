@@ -9,7 +9,7 @@ class ModelManager {
   /// If not, attempts to copy it from a few common locations.
   static Future<String> getModelPath() async {
     final directory = await getApplicationDocumentsDirectory();
-    return '${directory.path}/$modelName';
+    return '${directory.path}/models/$modelName';
   }
 
   static Future<bool> ensureModelExists({Function(String)? onProgress}) async {

@@ -33,13 +33,24 @@ class AgentScreen extends StatefulWidget {
   State<AgentScreen> createState() => _AgentScreenState();
 }
 
+class LogEntry {
+  final DateTime timestamp;
+  final String message;
+  final Color color;
+
+  LogEntry(this.message, {Color? color}) 
+      : timestamp = DateTime.now(),
+        this.color = color ?? Colors.black;
+}
+
 class _AgentScreenState extends State<AgentScreen> {
   final TextEditingController _goalController = TextEditingController();
   final CactusBrain _brain = CactusBrain();
   static const platform = MethodChannel('com.minitap.device/agent');
+  final ScrollController _scrollController = ScrollController();
 
   bool _isRunning = false;
-  String _statusLog = "Ready.";
+  final List<LogEntry> _logs = [];
   String _currentImage = "";
 
   @override
@@ -51,13 +62,13 @@ class _AgentScreenState extends State<AgentScreen> {
   Future<void> _initSequence() async {
     final abiOk = await _checkAbiSupport();
     if (!abiOk) {
-      _log("Unsupported ABI. This build ships native libs for arm64-v8a only. Use an ARM64 device/emulator.");
+      _log("Unsupported ABI. This build ships native libs for arm64-v8a only. Use an ARM64 device/emulator.", color: Colors.red);
       return;
     }
 
     final hasModel = await ModelManager.ensureModelExists(
       onProgress: (status) {
-        _log(status);
+        _log(status, color: Colors.blue);
       }
     );
     if (!hasModel) {
@@ -69,7 +80,9 @@ class _AgentScreenState extends State<AgentScreen> {
 
     final modelPath = await ModelManager.getModelPath();
     await _checkPermissions();
-    await _brain.init(modelPath);
+    // Cactus expects just the filename relative to its models dir
+    await _brain.init(ModelManager.modelName);
+    _log("Brain initialized.", color: Colors.green);
   }
 
   Future<void> _checkPermissions() async {
@@ -98,14 +111,14 @@ class _AgentScreenState extends State<AgentScreen> {
       final bool result = await platform.invokeMethod('isServiceActive');
       return result;
     } on PlatformException catch (e) {
-      _log("Error checking service: ${e.message}");
+      _log("Error checking service: ${e.message}", color: Colors.red);
       return false;
     }
   }
 
-  void _log(String message) {
+  void _log(String message, {Color? color}) {
     setState(() {
-      _statusLog = "$message\n$_statusLog";
+      _logs.insert(0, LogEntry(message, color: color));
     });
   }
 
@@ -113,12 +126,12 @@ class _AgentScreenState extends State<AgentScreen> {
     setState(() {
       _isRunning = false;
     });
-    _log("Agent stopped.");
+    _log("Agent stopped.", color: Colors.red);
   }
 
   Future<void> _startAgent() async {
     if (_goalController.text.isEmpty) {
-      _log("Please enter a goal.");
+      _log("Please enter a goal.", color: Colors.orange);
       return;
     }
 
@@ -130,7 +143,8 @@ class _AgentScreenState extends State<AgentScreen> {
 
     setState(() {
       _isRunning = true;
-      _statusLog = "Agent Started...";
+      _logs.clear();
+      _log("Agent Started...", color: Colors.green);
     });
 
     while (_isRunning) {
@@ -149,15 +163,15 @@ class _AgentScreenState extends State<AgentScreen> {
         });
 
         // 2. Ask Brain
-        _log("Analyzing...");
+        _log("Analyzing...", color: Colors.blue);
         final AgentResponse response = await _brain.ask(
           imagePath,
           uiTree,
           _goalController.text
         );
 
-        _log("Analysis: ${response.analysis}");
-        _log("Plan: ${response.plan}");
+        _log("Analysis: ${response.analysis}", color: Colors.purple);
+        _log("Plan: ${response.plan}", color: Colors.deepPurple);
 
         // 3. Act
         if (response.elementId != null) {
@@ -172,16 +186,16 @@ class _AgentScreenState extends State<AgentScreen> {
             final x = bounds[0] + (bounds[2] / 2);
             final y = bounds[1] + (bounds[3] / 2);
 
-            _log("Action: Tap at ($x, $y)");
+            _log("Action: Tap at ($x, $y)", color: Colors.green);
             await platform.invokeMethod('performAction', {
               'x': x.toInt(),
               'y': y.toInt()
             });
           } else {
-             _log("Target element ${response.elementId} not found in current tree.");
+             _log("Target element ${response.elementId} not found in current tree.", color: Colors.orange);
           }
         } else {
-           _log("No action determined.");
+           _log("No action determined.", color: Colors.orange);
         }
 
         // 4. Wait
@@ -189,7 +203,7 @@ class _AgentScreenState extends State<AgentScreen> {
         await Future.delayed(const Duration(seconds: 3));
 
       } catch (e) {
-        _log("Error in loop: $e");
+        _log("Error in loop: $e", color: Colors.red);
         _stopAgent();
       }
     }
@@ -231,6 +245,7 @@ class _AgentScreenState extends State<AgentScreen> {
   void dispose() {
     _brain.dispose();
     _goalController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -269,15 +284,38 @@ class _AgentScreenState extends State<AgentScreen> {
           const Divider(),
           Expanded(
             child: Container(
-              color: Colors.black12,
+              color: Colors.grey.shade100,
               width: double.infinity,
               padding: const EdgeInsets.all(8.0),
-              child: SingleChildScrollView(
-                reverse: true,
-                child: Text(
-                  _statusLog,
-                  style: const TextStyle(fontFamily: 'Monospace'),
-                ),
+              child: ListView.builder(
+                controller: _scrollController,
+                reverse: true, // Newest at bottom if we appended, but we insert at 0 so reverse: false? 
+                // Wait, I used insert(0, ...) so newest is at top. 
+                // If I want standard log view (newest at bottom), I should add() and use reverse: true?
+                // Actually, insert(0) puts it at index 0. ListView starts at index 0 at top.
+                // So newest is at top. That's fine for mobile.
+                itemCount: _logs.length,
+                itemBuilder: (context, index) {
+                  final log = _logs[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontFamily: 'Monospace', fontSize: 12, color: Colors.black87),
+                        children: [
+                          TextSpan(
+                            text: "[${log.timestamp.hour}:${log.timestamp.minute}:${log.timestamp.second}] ",
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                          TextSpan(
+                            text: log.message,
+                            style: TextStyle(color: log.color, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
