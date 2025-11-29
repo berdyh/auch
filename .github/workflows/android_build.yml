@@ -19,6 +19,9 @@ jobs:
         with:
           flutter-version: '3.38.3'
 
+      - name: Disable Flutter analytics
+        run: flutter config --no-analytics
+
       - name: Get dependencies
         run: flutter pub get
 
