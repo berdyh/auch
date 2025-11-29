@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 class ModelManager {
+  static const String modelName = "LFM2-VL-1.6B.gguf";
   static const String modelUrl = "https://huggingface.co/bartowski/LiquidAI_LFM2-VL-1.6B-GGUF/resolve/main/LiquidAI_LFM2-VL-1.6B-Q5_K_M.gguf?download=true";
 
   /// Checks if the model exists in the app's document directory.
