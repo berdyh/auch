@@ -36,7 +36,13 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
     flutter pub get
     ```
 
-4.  **Build/Install:**
+4.  **Place the model on-device (required):**
+    * Put `LFM2-VL-1.6B.gguf` in one of:
+      * `/storage/emulated/0/Download/` (easiest: `adb push LFM2-VL-1.6B.gguf /sdcard/Download/`)
+      * Or directly into the app docs dir after first run: `/storage/emulated/0/Android/data/com.auch.app/files/`
+    * On first launch the app will copy from these locations into its internal storage.
+
+5.  **Build/Install:**
     * Debug build:
       ```bash
       flutter build apk --debug
