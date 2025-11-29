@@ -186,7 +186,7 @@ class _AgentScreenState extends State<AgentScreen> {
     });
   }
 
-  void _stopAgent() {
+  void _stopAgent() async {
     setState(() {
       _isRunning = false;
     });
