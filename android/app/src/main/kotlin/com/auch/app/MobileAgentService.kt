@@ -13,6 +13,8 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import android.hardware.display.DisplayManager
+import android.view.Display
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -103,7 +105,10 @@ class MobileAgentService : AccessibilityService() {
             throw IllegalStateException("Screenshot capture requires Android 13+")
         }
 
-        val displayId = display?.displayId ?: throw IllegalStateException("No active display")
+        val dm = getSystemService(DisplayManager::class.java)
+        val activeDisplay: Display? = dm.getDisplay(Display.DEFAULT_DISPLAY)
+        val displayId = activeDisplay?.displayId ?: display?.displayId
+            ?: throw IllegalStateException("No active display available for screenshot")
         val executor = ContextCompat.getMainExecutor(this)
         val latch = CountDownLatch(1)
         var path: String? = null
