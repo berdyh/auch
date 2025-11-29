@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Auch</string>
-    <string name="accessibility_service_description">Minitap Mobile Agent Service for autonomous control.</string>
+    <string name="app_name">Auch Agent</string>
+    <string name="accessibility_service_description">Allows Auch Agent to observe the screen, read the UI, and perform gestures to complete tasks.</string>
 </resources>

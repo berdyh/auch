@@ -25,10 +25,13 @@
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+flutter/
 .packages
 .pub-cache/
 .pub/
 /build/
+android/build/
+assets/models/*.gguf
 
 # Android related
 **/android/**/gradle-wrapper.jar

@@ -11,10 +11,10 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 
 ## 🛠 Prerequisites
 
-*   **Flutter SDK:** 3.13.0 or higher.
-*   **Android SDK:** API Level 33 (Target), Min SDK 30.
-*   **Android Device:** Must support `AccessibilityService`.
-*   **Model File:** `LFM2-VL-1.6B.gguf` (must be obtained separately).
+* **Flutter SDK:** 3.38.x (current build used 3.38.3).
+* **Android SDK:** Target/compile SDK from Flutter toolchain (currently 34/35 are pulled automatically). Min SDK 30.
+* **Android Device/Emulator:** AccessibilityService capable; screenshot capture path requires Android 13+ (API 33+) because we rely on `takeScreenshot`.
+* **Model File:** `LFM2-VL-1.6B.gguf` (must be obtained separately).
 
 ## 📥 Setup & Installation
 
@@ -36,30 +36,35 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
     flutter pub get
     ```
 
-4.  **Run on Device:**
-    ```bash
-    flutter run
-    ```
+4.  **Build/Install:**
+    * Debug build:
+      ```bash
+      flutter build apk --debug
+      adb install -r build/app/outputs/flutter-apk/app-debug.apk
+      ```
+    * Or run directly to a connected device/emulator:
+      ```bash
+      flutter run
+      ```
 
 ## 📱 Usage
 
-1.  **Grant Permissions:** On the first run, the app will ask for necessary permissions.
-2.  **Enable Accessibility Service:**
+1.  **Enable Accessibility Service:**
     *   Go to Android Settings -> Accessibility.
-    *   Find "Auch" (or "Minitap Mobile Agent").
-    *   Toggle it **ON**.
-    *   Allow the service to have full control of the device.
-3.  **Start the Agent:**
+    *   Find **"Auch Agent"**.
+    *   Toggle it **ON** and allow full control.
+2.  **Start the Agent:**
     *   Open the Auch app.
     *   Enter a goal (e.g., "Open Settings and find WiFi").
     *   Tap **Start Agent**.
-4.  **Observation:** The app will overlay its thought process ("Analysis" and "Plan") as it navigates.
+3.  **Observation:** The app logs its thought process ("Analysis" and "Plan") as it navigates. Screenshots are saved to the app cache while running.
 
 ## ⚠️ Important Notes
 
 *   **Experimental:** This is an MVP. It may not handle all edge cases or complex UI hierarchies perfectly.
 *   **Performance:** Inference speed depends on the device's NPU/GPU/CPU capabilities.
 *   **Model Size:** The `LFM2-VL-1.6B` model is large (~2GB+). Ensure your device has enough storage and RAM.
+*   **Screenshots:** Current implementation requires Android 13+; older devices will need an alternative capture path (not implemented).
 
 ## 🤝 Contributing
 

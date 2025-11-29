@@ -1,60 +1,67 @@
 package com.auch.app
 
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import org.json.JSONObject
+import java.util.concurrent.Executors
 
-class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.minitap.device/agent"
+class MainActivity : FlutterActivity() {
+    private val channelName = "com.minitap.device/agent"
+    private val executor = Executors.newSingleThreadExecutor()
+
+    override fun onDestroy() {
+        super.onDestroy()
+        executor.shutdown()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "isServiceActive" -> {
-                    result.success(MobileAgentService.instance != null)
-                }
-                "captureState" -> {
-                    val service = MobileAgentService.instance
-                    if (service != null) {
-                        service.captureState { imagePath, uiTree ->
-                            if (imagePath.isNotEmpty()) {
-                                val response = HashMap<String, String>()
-                                response["imagePath"] = imagePath
-                                response["uiTree"] = uiTree
-                                runOnUiThread {
-                                    result.success(response)
-                                }
-                            } else {
-                                runOnUiThread {
-                                    result.error("CAPTURE_FAILED", "Failed to take screenshot", null)
-                                }
-                            }
-                        }
-                    } else {
-                        result.error("SERVICE_OFF", "Accessibility Service is not enabled", null)
-                    }
-                }
-                "performAction" -> {
-                    val x = call.argument<Int>("x")
-                    val y = call.argument<Int>("y")
-                    val service = MobileAgentService.instance
 
-                    if (service != null && x != null && y != null) {
-                        service.performAction(x, y) { success ->
-                            runOnUiThread {
-                                result.success(success)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isServiceActive" -> {
+                        result.success(MobileAgentService.isRunning)
+                    }
+                    "captureState" -> {
+                        executor.execute {
+                            val service = MobileAgentService.instance
+                            if (service == null) {
+                                runOnUiThread { result.error("NO_SERVICE", "Accessibility service inactive", null) }
+                                return@execute
+                            }
+                            try {
+                                val data = service.captureState()
+                                runOnUiThread { result.success(data) }
+                            } catch (e: Exception) {
+                                runOnUiThread { result.error("CAPTURE_ERROR", e.message, null) }
                             }
                         }
-                    } else {
-                         result.error("INVALID_ARGS", "Service off or missing coords", null)
                     }
-                }
-                else -> {
-                    result.notImplemented()
+                    "performAction" -> {
+                        val x = call.argument<Int>("x")
+                        val y = call.argument<Int>("y")
+                        if (x == null || y == null) {
+                            result.error("BAD_ARGS", "Missing coordinates", null)
+                            return@setMethodCallHandler
+                        }
+                        executor.execute {
+                            val service = MobileAgentService.instance
+                            if (service == null) {
+                                runOnUiThread { result.error("NO_SERVICE", "Accessibility service inactive", null) }
+                                return@execute
+                            }
+                            val success = service.performAction(x, y)
+                            runOnUiThread { result.success(success) }
+                        }
+                    }
+                    else -> result.notImplemented()
                 }
             }
-        }
     }
 }

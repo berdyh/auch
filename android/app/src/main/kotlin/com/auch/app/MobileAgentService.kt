@@ -2,31 +2,45 @@ package com.auch.app
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.accessibilityservice.GestureDescription.StrokeDescription
+import android.accessibilityservice.AccessibilityService.ScreenshotResult
+import android.accessibilityservice.AccessibilityService.TakeScreenshotCallback
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
-import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
+/**
+ * Accessibility service providing "eyes and hands" for the agent.
+ */
 class MobileAgentService : AccessibilityService() {
 
     companion object {
+        @Volatile
         var instance: MobileAgentService? = null
-    }
+            private set
 
-    private val executor: Executor = Executors.newSingleThreadExecutor()
+        val isRunning: Boolean
+            get() = instance != null
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+    }
+
+    override fun onInterrupt() {
+        // No-op
     }
 
     override fun onDestroy() {
@@ -34,105 +48,105 @@ class MobileAgentService : AccessibilityService() {
         instance = null
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // No-op
+    fun captureState(): Map<String, Any> {
+        val uiTree = buildUiTreeJson()
+        val screenshotPath = captureScreenshot()
+        return mapOf(
+            "imagePath" to screenshotPath,
+            "uiTree" to uiTree
+        )
     }
 
-    override fun onInterrupt() {
-        // No-op
+    fun performAction(x: Int, y: Int): Boolean {
+        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val stroke = StrokeDescription(path, 0, 50)
+        return dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
     }
 
-    fun captureState(callback: (String, String) -> Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            takeScreenshot(
-                Display.DEFAULT_DISPLAY,
-                executor,
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(screenshot: ScreenshotResult) {
-                        val bitmap = Bitmap.wrapHardwareBuffer(
-                            screenshot.hardwareBuffer,
-                            screenshot.colorSpace
-                        )
-                        val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.png")
-                        FileOutputStream(file).use { out ->
-                            bitmap?.compress(Bitmap.CompressFormat.PNG, 100, out)
-                        }
-                        bitmap?.recycle()
-                        screenshot.hardwareBuffer.close()
-
-                        val uiTree = getSimplifiedUiTree()
-                        callback(file.absolutePath, uiTree)
-                    }
-
-                    override fun onFailure(errorCode: Int) {
-                        callback("", "[]") // Failed
-                    }
-                }
-            )
-        } else {
-            // Fallback or error for older APIs (MVP targets API 30+)
-            callback("", "[]")
-        }
-    }
-
-    private fun getSimplifiedUiTree(): String {
+    private fun buildUiTreeJson(): String {
         val root = rootInActiveWindow ?: return "[]"
         val nodes = JSONArray()
-        try {
-            traverseNode(root, nodes)
-        } finally {
-            root.recycle()
+        var idCounter = 1
+
+        fun traverse(node: AccessibilityNodeInfo?) {
+            if (node == null) return
+
+            val actionable = node.isClickable || node.isFocusable || node.isEditable
+            if (actionable) {
+                val bounds = Rect()
+                node.getBoundsInScreen(bounds)
+
+                val obj = JSONObject()
+                obj.put("id", idCounter++)
+                obj.put("class", node.className?.toString() ?: "")
+                obj.put(
+                    "text",
+                    node.text?.toString()
+                        ?.takeIf { it.isNotBlank() }
+                        ?: node.contentDescription?.toString().orEmpty()
+                )
+                obj.put("bounds", JSONArray(listOf(bounds.left, bounds.top, bounds.width(), bounds.height())))
+                nodes.put(obj)
+            }
+
+            for (i in 0 until node.childCount) {
+                traverse(node.getChild(i))
+            }
         }
+
+        traverse(root)
         return nodes.toString()
     }
 
-    private fun traverseNode(node: AccessibilityNodeInfo, nodes: JSONArray) {
-        if (node.isClickable || node.isEditable || node.isCheckable) {
-            val rect = Rect()
-            node.getBoundsInScreen(rect)
-
-            // Filter out off-screen or tiny elements
-            if (rect.width() > 0 && rect.height() > 0) {
-                val nodeJson = JSONObject()
-                // Use hashCode as a simple stable ID for this session/frame
-                nodeJson.put("id", node.hashCode())
-                nodeJson.put("class", node.className)
-                nodeJson.put("text", node.text ?: node.contentDescription ?: "")
-
-                val bounds = JSONArray()
-                bounds.put(rect.left)
-                bounds.put(rect.top)
-                bounds.put(rect.width())
-                bounds.put(rect.height())
-                nodeJson.put("bounds", bounds)
-
-                nodes.put(nodeJson)
-            }
+    private fun captureScreenshot(): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            throw IllegalStateException("Screenshot capture requires Android 13+")
         }
 
-        for (i in 0 until node.childCount) {
-            node.getChild(i)?.let { child ->
-                traverseNode(child, nodes)
-                child.recycle()
+        val displayId = display?.displayId ?: throw IllegalStateException("No active display")
+        val executor = ContextCompat.getMainExecutor(this)
+        val latch = CountDownLatch(1)
+        var path: String? = null
+        var failure: Exception? = null
+
+        takeScreenshot(displayId, executor, object : TakeScreenshotCallback {
+            override fun onSuccess(screenshot: ScreenshotResult) {
+                try {
+                    val bitmap = bitmapFromResult(screenshot)
+                        ?: throw IllegalStateException("Failed to render screenshot")
+                    val file = File(cacheDir, "last_capture.png")
+                    FileOutputStream(file).use { fos ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+                    }
+                    path = file.absolutePath
+                } catch (e: Exception) {
+                    failure = e
+                } finally {
+                    latch.countDown()
+                }
             }
-        }
+
+            override fun onFailure(errorCode: Int) {
+                failure = IllegalStateException("Screenshot failed with code: $errorCode")
+                latch.countDown()
+            }
+        })
+
+        latch.await(3, TimeUnit.SECONDS)
+        if (path != null) return path!!
+        throw failure ?: IllegalStateException("Screenshot capture timed out")
     }
 
-    fun performAction(x: Int, y: Int, callback: (Boolean) -> Unit) {
-        val path = Path()
-        path.moveTo(x.toFloat(), y.toFloat())
-        val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
-            .build()
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun bitmapFromResult(result: ScreenshotResult): Bitmap? {
+        val buffer = result.hardwareBuffer
+        val colorSpace = result.colorSpace
+        val bitmap = Bitmap.wrapHardwareBuffer(buffer, colorSpace)?.copy(Bitmap.Config.ARGB_8888, false)
+        buffer.close()
+        return bitmap
+    }
 
-        dispatchGesture(gesture, object : GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                callback(true)
-            }
-
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                callback(false)
-            }
-        }, null)
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Intentionally minimal; the service is polled via MethodChannel.
     }
 }
