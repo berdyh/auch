@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'services/cactus_brain.dart';
 import 'services/model_manager.dart';
 
@@ -48,6 +49,12 @@ class _AgentScreenState extends State<AgentScreen> {
   }
 
   Future<void> _initSequence() async {
+    final abiOk = await _checkAbiSupport();
+    if (!abiOk) {
+      _log("Unsupported ABI. This build ships native libs for arm64-v8a only. Use an ARM64 device/emulator.");
+      return;
+    }
+
     final hasModel = await ModelManager.ensureModelExists();
     if (!hasModel) {
       if (mounted) {
@@ -66,6 +73,20 @@ class _AgentScreenState extends State<AgentScreen> {
     // But depending on how assets are copied or if we need to read the model, we might need basic storage on older devices.
     // However, since we removed MANAGE_EXTERNAL_STORAGE, we just do a basic check/request if needed or skip.
     // For now, we will skip explicit requests as we are using internal cacheDir.
+  }
+
+  Future<bool> _checkAbiSupport() async {
+    try {
+      final info = await DeviceInfoPlugin().androidInfo;
+      final abis = info.supportedAbis;
+      if (abis.any((abi) => abi.contains("arm64"))) {
+        return true;
+      }
+      return false;
+    } catch (_) {
+      // If we cannot detect, assume unsupported to avoid crashing on x86 emulator.
+      return false;
+    }
   }
 
   Future<bool> _isServiceActive() async {

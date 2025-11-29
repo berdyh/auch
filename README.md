@@ -71,6 +71,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 *   **Performance:** Inference speed depends on the device's NPU/GPU/CPU capabilities.
 *   **Model Size:** The `LFM2-VL-1.6B` model is large (~2GB+). Ensure your device has enough storage and RAM.
 *   **Screenshots:** Current implementation requires Android 13+; older devices will need an alternative capture path (not implemented).
+*   **ABI support:** The bundled native libs from `cactus` are arm64-v8a only. Use a physical ARM64 device or an ARM64 emulator; x86 emulators will fail to load `libcactus_util.so`.
 
 ## 🤝 Contributing
 
