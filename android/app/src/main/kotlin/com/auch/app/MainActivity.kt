@@ -28,6 +28,17 @@ class MainActivity : FlutterActivity() {
                     "isServiceActive" -> {
                         result.success(MobileAgentService.isRunning)
                     }
+                    "checkAccessibilityEnabled" -> {
+                        result.success(MobileAgentService.isRunning)
+                    }
+                    "startForegroundService" -> {
+                        AgentForegroundService.start(this)
+                        result.success(true)
+                    }
+                    "stopForegroundService" -> {
+                        AgentForegroundService.stop(this)
+                        result.success(true)
+                    }
                     "captureState" -> {
                         executor.execute {
                             val service = MobileAgentService.instance
