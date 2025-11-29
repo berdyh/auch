@@ -101,8 +101,8 @@ class MobileAgentService : AccessibilityService() {
     }
 
     private fun captureScreenshot(): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            throw IllegalStateException("Screenshot capture requires Android 13+")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            throw IllegalStateException("Screenshot capture requires Android 11+ (API 30+)")
         }
 
         val dm = getSystemService(DisplayManager::class.java)
@@ -142,7 +142,7 @@ class MobileAgentService : AccessibilityService() {
         throw failure ?: IllegalStateException("Screenshot capture timed out")
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun bitmapFromResult(result: ScreenshotResult): Bitmap? {
         val buffer = result.hardwareBuffer
         val colorSpace = result.colorSpace

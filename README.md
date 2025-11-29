@@ -13,8 +13,8 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 
 * **Flutter SDK:** 3.38.x (current build used 3.38.3).
 * **Android SDK:** Target/compile SDK from Flutter toolchain (currently 34/35 are pulled automatically). Min SDK 30.
-* **Android Device/Emulator:** AccessibilityService capable; screenshot capture path requires Android 13+ (API 33+) because we rely on `takeScreenshot`.
-* **Model File:** `LFM2-VL-1.6B.gguf` (must be obtained separately).
+* **Android Device/Emulator:** AccessibilityService capable; screenshot capture path requires Android 11+ (API 30+).
+* **Model File:** `LFM2-VL-1.6B.gguf` (automatically downloaded on first run).
 
 ## 📥 Setup & Installation
 
@@ -24,23 +24,18 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
     cd auch
     ```
 
-2.  **Add the Model:**
-    *   Download the `LFM2-VL-1.6B.gguf` model.
-    *   Place it in the `assets/models/` directory:
-        ```
-        assets/models/LFM2-VL-1.6B.gguf
-        ```
-
-3.  **Install Dependencies:**
+2.  **Install Dependencies:**
     ```bash
     flutter pub get
     ```
 
-4.  **Place the model on-device (required):**
-    * Put `LFM2-VL-1.6B.gguf` in one of:
-      * `/storage/emulated/0/Download/` (easiest: `adb push LFM2-VL-1.6B.gguf /sdcard/Download/`)
-      * Or directly into the app docs dir after first run: `/storage/emulated/0/Android/data/com.auch.app/files/`
-    * On first launch the app will copy from these locations into its internal storage.
+3.  **Run the App:**
+    *   **IMPORTANT:** You must use an **ARM64 (arm64-v8a)** emulator or physical device.
+    *   Debug build:
+      ```bash
+      flutter run
+      ```
+    *   On first launch, the app will automatically download the model (~1.2GB).
 
 5.  **Build/Install:**
     * Debug build:
@@ -70,7 +65,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 *   **Experimental:** This is an MVP. It may not handle all edge cases or complex UI hierarchies perfectly.
 *   **Performance:** Inference speed depends on the device's NPU/GPU/CPU capabilities.
 *   **Model Size:** The `LFM2-VL-1.6B` model is large (~2GB+). Ensure your device has enough storage and RAM.
-*   **Screenshots:** Current implementation requires Android 13+; older devices will need an alternative capture path (not implemented).
+*   **Screenshots:** Current implementation requires Android 11+ (API 30+).
 *   **ABI support:** The bundled native libs from `cactus` are arm64-v8a only. Use a physical ARM64 device or an ARM64 emulator; x86 emulators will fail to load `libcactus_util.so`.
 
 ## 🤝 Contributing

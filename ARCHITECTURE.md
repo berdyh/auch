@@ -58,7 +58,7 @@ Located in `lib/services/cactus_brain.dart` and `lib/agent/`.
 *   **Mechanism:**
     *   **Cactus VLM:** Wraps the `cactus` package to interface with the `LFM2-VL-1.6B` GGUF model.
     *   **Prompt Engineering:** Uses a rigid System Prompt (`PromptStrategy.dart`) to enforce a structured thought process (`Analysis` -> `Plan` -> `Action`) and strictly formatted JSON output.
-    *   **Model Management:** `ModelManager.dart` handles locating the model file and copying it from assets if necessary.
+    *   **Model Management:** `ModelManager.dart` handles checking for the model and downloading it from HuggingFace if missing.
 
 ### 3. Actuation (Android Native)
 Located in `MobileAgentService.kt`.

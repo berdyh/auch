@@ -55,7 +55,11 @@ class _AgentScreenState extends State<AgentScreen> {
       return;
     }
 
-    final hasModel = await ModelManager.ensureModelExists();
+    final hasModel = await ModelManager.ensureModelExists(
+      onProgress: (status) {
+        _log(status);
+      }
+    );
     if (!hasModel) {
       if (mounted) {
         _showModelMissingDialog();
