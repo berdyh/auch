@@ -1,0 +1,99 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter attach
+
+## exception
+
+StateError: Bad state: Stream has already been listened to.
+
+```
+#0      _StreamController._subscribe (dart:async/stream_controller.dart:695:7)
+#1      _ControllerStream._createSubscription (dart:async/stream_controller.dart:854:20)
+#2      _StreamImpl.listen (dart:async/stream_impl.dart:516:42)
+#3      new _ForwardingStreamSubscription (dart:async/stream_pipe.dart:141:37)
+#4      _ForwardingStream._createSubscription (dart:async/stream_pipe.dart:105:16)
+#5      _ForwardingStream.listen (dart:async/stream_pipe.dart:96:12)
+#6      FlutterDevice.connect (package:flutter_tools/src/resident_runner.dart:245:35)
+#7      ResidentRunner.connectToServiceProtocol (package:flutter_tools/src/resident_runner.dart:1366:21)
+#8      HotRunner._attach (package:flutter_tools/src/run_hot.dart:262:13)
+#9      HotRunner.attach (package:flutter_tools/src/run_hot.dart:249:12)
+#10     AttachCommand._attachToDevice (package:flutter_tools/src/commands/attach.dart:412:31)
+<asynchronous suspension>
+#11     AttachCommand.runCommand (package:flutter_tools/src/commands/attach.dart:264:5)
+<asynchronous suspension>
+#12     FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1559:27)
+<asynchronous suspension>
+#13     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#14     CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#15     FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:487:9)
+<asynchronous suspension>
+#16     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#17     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:422:5)
+<asynchronous suspension>
+#18     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+<asynchronous suspension>
+#19     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#20     main (package:flutter_tools/executable.dart:103:3)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[✓] Flutter (Channel stable, 3.38.3, on Debian GNU/Linux 13 (trixie) 6.12.57+deb13-amd64, locale en_US.UTF-8) [104ms]
+    • Flutter version 3.38.3 on channel stable at /home/shoh/flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision 19074d12f7 (9 days ago), 2025-11-20 17:53:13 -0500
+    • Engine revision 13e658725d
+    • Dart version 3.10.1
+    • DevTools version 2.51.1
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, omit-legacy-version-file, enable-lldb-debugging
+
+[✓] Android toolchain - develop for Android devices (Android SDK version 36.1.0) [3.2s]
+    • Android SDK at /home/shoh/Android/Sdk
+    • Emulator version 36.2.12.0 (build_id 14214601) (CL:N/A)
+    • Platform android-36, build-tools 36.1.0
+    • ANDROID_HOME = /home/shoh/Android/Sdk
+    • ANDROID_SDK_ROOT = /home/shoh/Android/Sdk
+    • Java binary at: /snap/android-studio/209/jbr/bin/java
+      This is the JDK bundled with the latest Android Studio installation on this machine.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment (build 21.0.7+-13880790-b1038.58)
+    • All Android licenses accepted.
+
+[✓] Chrome - develop for the web [18ms]
+    • Chrome at google-chrome
+
+[✗] Linux toolchain - develop for Linux desktop [1,939ms]
+    ✗ clang++ is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install clang), or can be downloaded from https://releases.llvm.org/
+    • cmake version 3.31.6
+    ✗ ninja is required for Linux development.
+      It is likely available from your distribution (e.g.: apt install ninja-build), or can be downloaded from https://github.com/ninja-build/ninja/releases
+    • pkg-config version 1.8.1
+    • OpenGL core renderer: AMD Radeon Graphics (radeonsi, rembrandt, LLVM 19.1.7, DRM 3.61, 6.12.57+deb13-amd64)
+    • OpenGL core version: 4.6 (Core Profile) Mesa 25.0.7-2
+    • OpenGL core shading language version: 4.60
+    • OpenGL ES renderer: AMD Radeon Graphics (radeonsi, rembrandt, LLVM 19.1.7, DRM 3.61, 6.12.57+deb13-amd64)
+    • OpenGL ES version: OpenGL ES 3.2 Mesa 25.0.7-2
+    • OpenGL ES shading language version: OpenGL ES GLSL ES 3.20
+    • GL_EXT_framebuffer_blit: yes
+    • GL_EXT_texture_format_BGRA8888: yes
+
+[✓] Connected device (3 available) [355ms]
+    • SM S938B (mobile) • RFCY51ET2AZ • android-arm64  • Android 16 (API 36)
+    • Linux (desktop)   • linux       • linux-x64      • Debian GNU/Linux 13 (trixie) 6.12.57+deb13-amd64
+    • Chrome (web)      • chrome      • web-javascript • Google Chrome 142.0.7444.175
+
+[✓] Network resources [721ms]
+    • All expected network resources are available.
+
+! Doctor found issues in 1 category.
+```
