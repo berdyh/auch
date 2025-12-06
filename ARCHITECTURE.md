@@ -31,7 +31,7 @@ graph TD
 
     MethodChannel -->|State| AgentLoop
     AgentLoop -->|Img + Tree + Goal| CactusService
-    CactusService -->|Inference| LocalLLM[Local LFM2-VL Model]
+    CactusService -->|Inference| LocalLLM[Local Liquid VL Model]
     LocalLLM -->|JSON Response| CactusService
 
     CactusService -->|Action Plan| AgentLoop
@@ -56,7 +56,7 @@ Located in `lib/services/cactus_brain.dart` and `lib/agent/`.
 
 *   **Role:** The cognitive center.
 *   **Mechanism:**
-    *   **Cactus VLM:** Wraps the `cactus` package to interface with the `LFM2-VL-1.6B` GGUF model.
+    *   **Cactus VLM:** Wraps the `cactus` package to interface with the `Liquid VL` (e.g., 450M) GGUF models.
     *   **Prompt Engineering:** Uses a rigid System Prompt (`PromptStrategy.dart`) to enforce a structured thought process (`Analysis` -> `Plan` -> `Action`) and strictly formatted JSON output.
     *   **Model Management:** `ModelManager.dart` handles checking for the model and downloading it from HuggingFace if missing.
 

@@ -5,7 +5,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 ## Features
 
 *   **Autonomous Operation:** "See" the screen, "Think" about the next step, and "Act" by simulating gestures.
-*   **On-Device Intelligence:** Powered by the [Cactus](https://github.com/cactus-compute/cactus-flutter) Flutter package and the `LFM2-VL-1.6B` model. No cloud APIs required.
+*   **On-Device Intelligence:** Powered by the [Cactus](https://github.com/cactus-compute/cactus-flutter) Flutter package and efficient local models (e.g., `Liquid VL 450M`). No cloud APIs required.
 *   **Accessibility Integration:** Leverages Android's `AccessibilityService` for precise UI tree retrieval and gesture injection.
 *   **Privacy-First:** All processing happens locally on the device.
 
@@ -14,7 +14,10 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 * **Flutter SDK:** 3.38.x (current build used 3.38.3).
 * **Android SDK:** Target/compile SDK from Flutter toolchain (currently 34/35 are pulled automatically). Min SDK 30.
 * **Android Device/Emulator:** AccessibilityService capable; screenshot capture path requires Android 11+ (API 30+).
-* **Model File:** `LFM2-VL-1.6B.gguf` (automatically downloaded on first run).
+* **Flutter SDK:** 3.38.x (current build used 3.38.3).
+* **Android SDK:** Target/compile SDK from Flutter toolchain (currently 34/35 are pulled automatically). Min SDK 30.
+* **Android Device/Emulator:** AccessibilityService capable; screenshot capture path requires Android 11+ (API 30+).
+* **Model File:** `lfm2-vl-450m` (or other configured models), automatically downloaded on first run.
 
 ## Setup & Installation
 
@@ -35,7 +38,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
       ```bash
       flutter run
       ```
-    *   On first launch, the app will automatically download the model (~1.2GB).
+    *   On first launch, the app will automatically download the model (~500MB).
 
 5.  **Build/Install:**
     * Debug build:
@@ -64,7 +67,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 
 *   **Experimental:** This is an MVP. It may not handle all edge cases or complex UI hierarchies perfectly.
 *   **Performance:** Inference speed depends on the device's NPU/GPU/CPU capabilities.
-*   **Model Size:** The `LFM2-VL-1.6B` model is large (~2GB+). Ensure your device has enough storage and RAM.
+*   **Model Size:** The default `lfm2-vl-450m` model is efficient (~500MB). Ensure your device has enough storage and RAM.
 *   **Screenshots:** Current implementation requires Android 11+ (API 30+).
 *   **ABI support:** The bundled native libs from `cactus` are arm64-v8a only. Use a physical ARM64 device or an ARM64 emulator; x86 emulators will fail to load `libcactus_util.so`.
 
