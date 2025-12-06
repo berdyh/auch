@@ -127,10 +127,25 @@ class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_isRunning) return;
-    if (state == AppLifecycleState.paused) {
-      _updateForegroundStatus("Agent running in background");
-    } else if (state == AppLifecycleState.resumed) {
-      _updateForegroundStatus("Agent active");
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _log("App resumed", color: Colors.green);
+        _updateForegroundStatus("Agent active");
+        break;
+      case AppLifecycleState.paused:
+        _log("App paused - agent running in background", color: Colors.blue);
+        _updateForegroundStatus("Agent running in background");
+        break;
+      case AppLifecycleState.detached:
+        _log("App detached - stopping agent", color: Colors.red);
+        _stopAgent();
+        break;
+      case AppLifecycleState.inactive:
+        _log("App inactive - continuing", color: Colors.grey);
+        break;
+      default:
+        break;
     }
   }
 
@@ -275,14 +290,23 @@ class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _runAgentLoop() async {
-    while (_isRunning && mounted) {
+    while (_isRunning) { // Removed '&& mounted' to allow background execution
       try {
-        // 1. Capture State
-        _log("Capturing state...");
+        if (!mounted) {
+           _log("Loop iteration (background)...", color: Colors.grey);
+        } else {
+           _log("Loop iteration starting...");
+        }
+
+        // 1. Capture State with Timeout
         await _updateForegroundStatus("Capturing state");
-        final result = await platform.invokeMethod('captureState');
-        // result is Map with imagePath and uiTree
-        // But invokeMethod returns dynamic, we need to cast safely
+        final result = await platform.invokeMethod('captureState').timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw Exception('captureState timed out');
+          },
+        );
+
         final Map<String, dynamic> resultMap =
             Map<String, dynamic>.from(result as Map);
         final String? imagePath = resultMap['imagePath'] as String?;
@@ -300,7 +324,7 @@ class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
           _goalController.text
         );
 
-        // Update visual feedback
+        // Update visual feedback (safe for unmounted)
         _safeSetState(() {
           _currentAnalysis = response.analysis;
           _currentPlan = response.plan;
@@ -308,7 +332,7 @@ class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
         });
 
         _log("Analysis: ${response.analysis}", color: Colors.purple);
-        _log("Plan: ${response.plan}", color: Colors.deepPurple);
+        _log("Action: ${response.action}", color: Colors.green);
         await _updateForegroundStatus("Action: ${response.action}");
 
         // 3. Act
@@ -324,7 +348,7 @@ class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
             final x = bounds[0] + (bounds[2] / 2);
             final y = bounds[1] + (bounds[3] / 2);
 
-            // Show tap indicator
+            // Show tap indicator if mounted
             _safeSetState(() {
               _lastTapLocation = Offset(x.toDouble(), y.toDouble());
               _showTapIndicator = true;
@@ -332,37 +356,45 @@ class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
 
             _log("Action: Tap at ($x, $y)", color: Colors.green);
             await _updateForegroundStatus("Tapping at ($x, $y)");
+            
             await platform.invokeMethod('performAction', {
               'x': x.toInt(),
               'y': y.toInt()
             });
 
+            // Wait for UI to settle
+            _log("Waiting for UI to settle...", color: Colors.grey);
+            await Future.delayed(const Duration(milliseconds: 1500)); 
+
             // Hide tap indicator after a delay
-            Future.delayed(const Duration(milliseconds: 800), () {
-              if (mounted) {
-                _safeSetState(() {
+            if (mounted) {
+                 _safeSetState(() {
                   _showTapIndicator = false;
                 });
-              }
-            });
+            }
           } else {
-             _log("Target element ${response.elementId} not found in current tree.", color: Colors.orange);
+             _log("Target element ${response.elementId} not found.", color: Colors.orange);
           }
         } else {
            _log("No action determined.", color: Colors.orange);
         }
 
-        // 4. Wait
-        await Future.delayed(const Duration(seconds: 3));
+        // 4. Wait (Extended delay)
+        await Future.delayed(const Duration(seconds: 4));
 
       } catch (e) {
-        _log("Error: $e", color: Colors.red);
-        // Don't stop on errors, just continue
-        await Future.delayed(const Duration(seconds: 2));
+        _log("Error in loop: $e", color: Colors.red);
+        if (e.toString().contains('NO_SERVICE')) {
+            _log("Service died, stopping agent", color: Colors.red);
+            _stopAgent();
+            break;
+        }
+        await Future.delayed(const Duration(seconds: 3));
       }
     }
-    _log("Agent stopped", color: Colors.grey);
+    _log("Agent loop exited", color: Colors.grey);
   }
+
 
   void _showServiceDialog() {
     showDialog(
