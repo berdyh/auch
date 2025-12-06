@@ -2,21 +2,21 @@
 
 Auch is a functional MVP of an on-device autonomous agent for Android. It uses a local Vision-Language Model (VLM) to perceive the screen, understand user goals, and perform actions like tapping and scrolling.
 
-## 🚀 Features
+## Features
 
 *   **Autonomous Operation:** "See" the screen, "Think" about the next step, and "Act" by simulating gestures.
 *   **On-Device Intelligence:** Powered by the [Cactus](https://github.com/cactus-compute/cactus-flutter) Flutter package and the `LFM2-VL-1.6B` model. No cloud APIs required.
 *   **Accessibility Integration:** Leverages Android's `AccessibilityService` for precise UI tree retrieval and gesture injection.
 *   **Privacy-First:** All processing happens locally on the device.
 
-## 🛠 Prerequisites
+## Prerequisites
 
 * **Flutter SDK:** 3.38.x (current build used 3.38.3).
 * **Android SDK:** Target/compile SDK from Flutter toolchain (currently 34/35 are pulled automatically). Min SDK 30.
 * **Android Device/Emulator:** AccessibilityService capable; screenshot capture path requires Android 11+ (API 30+).
 * **Model File:** `LFM2-VL-1.6B.gguf` (automatically downloaded on first run).
 
-## 📥 Setup & Installation
+## Setup & Installation
 
 1.  **Clone the Repository:**
     ```bash
@@ -48,7 +48,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
       flutter run
       ```
 
-## 📱 Usage
+## Usage
 
 1.  **Enable Accessibility Service:**
     *   Go to Android Settings -> Accessibility.
@@ -60,7 +60,7 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
     *   Tap **Start Agent**.
 3.  **Observation:** The app logs its thought process ("Analysis" and "Plan") as it navigates. Screenshots are saved to the app cache while running.
 
-## ⚠️ Important Notes
+## Important Notes
 
 *   **Experimental:** This is an MVP. It may not handle all edge cases or complex UI hierarchies perfectly.
 *   **Performance:** Inference speed depends on the device's NPU/GPU/CPU capabilities.
@@ -68,6 +68,6 @@ Auch is a functional MVP of an on-device autonomous agent for Android. It uses a
 *   **Screenshots:** Current implementation requires Android 11+ (API 30+).
 *   **ABI support:** The bundled native libs from `cactus` are arm64-v8a only. Use a physical ARM64 device or an ARM64 emulator; x86 emulators will fail to load `libcactus_util.so`.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read `ARCHITECTURE.md` to understand the system design before making changes.
