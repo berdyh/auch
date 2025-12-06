@@ -16,9 +16,23 @@ class AgentForegroundService : Service() {
     companion object {
         private const val CHANNEL_ID = "agent_service_channel"
         private const val NOTIFICATION_ID = 1001
+        private const val EXTRA_STATUS = "extra_status"
+        private const val DEFAULT_STATUS = "Autonomous agent is active"
+        private const val FALLBACK_STATUS = "Agent running (fgs)"
         
         fun start(context: Context) {
             val intent = Intent(context, AgentForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        fun updateStatus(context: Context, status: String) {
+            val intent = Intent(context, AgentForegroundService::class.java).apply {
+                putExtra(EXTRA_STATUS, status)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -32,19 +46,31 @@ class AgentForegroundService : Service() {
         }
     }
 
+    private var currentStatus: String = DEFAULT_STATUS
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = createNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // Android 14+ requires explicit foreground service type
-            startForeground(NOTIFICATION_ID, notification, 
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        currentStatus = intent?.getStringExtra(EXTRA_STATUS) ?: currentStatus
+        val notification = createNotification(currentStatus)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Use a standard type that does not require special permissions.
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (sec: SecurityException) {
+            // If a type is rejected on OEM builds, retry without a type so the app does not crash.
+            val fallback = createNotification(FALLBACK_STATUS)
+            startForeground(NOTIFICATION_ID, fallback)
         }
         return START_STICKY // Restart service if killed by system
     }
@@ -69,7 +95,7 @@ class AgentForegroundService : Service() {
         }
     }
 
-    private fun createNotification(): Notification {
+    private fun createNotification(status: String): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -81,7 +107,7 @@ class AgentForegroundService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Auch Agent Running")
-            .setContentText("Autonomous agent is active")
+            .setContentText(status)
             .setSmallIcon(android.R.drawable.ic_menu_compass) // Use default icon for now
             .setContentIntent(pendingIntent)
             .setOngoing(true) // Can't be swiped away

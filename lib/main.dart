@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:cactus/cactus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'services/cactus_brain.dart';
 import 'services/model_config.dart';
@@ -40,12 +38,12 @@ class LogEntry {
   final String message;
   final Color color;
 
-  LogEntry(this.message, {Color? color}) 
+  LogEntry(this.message, {Color? color})
       : timestamp = DateTime.now(),
-        this.color = color ?? Colors.black;
+        color = color ?? Colors.black;
 }
 
-class _AgentScreenState extends State<AgentScreen> {
+class _AgentScreenState extends State<AgentScreen> with WidgetsBindingObserver {
   final TextEditingController _goalController = TextEditingController();
   final CactusBrain _brain = CactusBrain();
   static const platform = MethodChannel('com.minitap.device/agent');
@@ -53,7 +51,6 @@ class _AgentScreenState extends State<AgentScreen> {
 
   bool _isRunning = false;
   final List<LogEntry> _logs = [];
-  String _currentImage = "";
   double? _downloadProgress;
   
   // Visual feedback state
@@ -63,13 +60,30 @@ class _AgentScreenState extends State<AgentScreen> {
   Offset? _lastTapLocation;
   bool _showTapIndicator = false;
 
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
+  }
+
+  Future<void> _updateForegroundStatus(String status) async {
+    try {
+      await platform.invokeMethod('updateForegroundStatus', {'status': status});
+    } catch (_) {
+      // Best-effort only; ignore failures when the service is not available.
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _initSequence();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initSequence();
+    });
   }
 
   Future<void> _initSequence() async {
+    if (!mounted) return;
     final abiOk = await _checkAbiSupport();
     if (!abiOk) {
       _log("Unsupported ABI. This build ships native libs for arm64-v8a only. Use an ARM64 device/emulator.", color: Colors.red);
@@ -90,7 +104,7 @@ class _AgentScreenState extends State<AgentScreen> {
       await _brain.init(
         modelSlug,
         onDownloadProgress: (progress) {
-          setState(() {
+          _safeSetState(() {
             _downloadProgress = progress;
           });
         },
@@ -102,11 +116,21 @@ class _AgentScreenState extends State<AgentScreen> {
         },
       );
 
-      setState(() {
-       _downloadProgress = null;
+      _safeSetState(() {
+        _downloadProgress = null;
       });
 
       _log("Brain initialized with $modelSlug", color: Colors.green);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isRunning) return;
+    if (state == AppLifecycleState.paused) {
+      _updateForegroundStatus("Agent running in background");
+    } else if (state == AppLifecycleState.resumed) {
+      _updateForegroundStatus("Agent active");
     }
   }
 
@@ -181,13 +205,13 @@ class _AgentScreenState extends State<AgentScreen> {
   }
 
   void _log(String message, {Color? color}) {
-    setState(() {
+    _safeSetState(() {
       _logs.insert(0, LogEntry(message, color: color));
     });
   }
 
   void _stopAgent() async {
-    setState(() {
+    _safeSetState(() {
       _isRunning = false;
     });
 
@@ -207,6 +231,7 @@ class _AgentScreenState extends State<AgentScreen> {
       _log("Failed to stop foreground service: $e", color: Colors.orange);
     }
 
+    await _updateForegroundStatus("Agent stopped");
     _log("Agent stopped by user", color: Colors.red);
   }
 
@@ -226,6 +251,7 @@ class _AgentScreenState extends State<AgentScreen> {
     try {
       await platform.invokeMethod('startForegroundService');
       _log("Foreground service started", color: Colors.green);
+      await _updateForegroundStatus("Agent starting…");
     } catch (e) {
       _log("Failed to start foreground service: $e", color: Colors.orange);
     }
@@ -238,33 +264,36 @@ class _AgentScreenState extends State<AgentScreen> {
       _log("Failed to enable wake lock: $e", color: Colors.orange);
     }
 
-    setState(() {
+    _safeSetState(() {
       _isRunning = true;
       _logs.clear();
-      _log("Agent Started...", color: Colors.green);
     });
+    _log("Agent Started...", color: Colors.green);
+    await _updateForegroundStatus("Agent running");
 
     _runAgentLoop();
   }
 
   Future<void> _runAgentLoop() async {
-    while (_isRunning) {
+    while (_isRunning && mounted) {
       try {
         // 1. Capture State
         _log("Capturing state...");
+        await _updateForegroundStatus("Capturing state");
         final result = await platform.invokeMethod('captureState');
         // result is Map with imagePath and uiTree
         // But invokeMethod returns dynamic, we need to cast safely
-        final Map<dynamic, dynamic> resultMap = result as Map<dynamic, dynamic>;
-        final String imagePath = resultMap['imagePath'];
-        final String uiTree = resultMap['uiTree'];
-
-        setState(() {
-          _currentImage = imagePath;
-        });
+        final Map<String, dynamic> resultMap =
+            Map<String, dynamic>.from(result as Map);
+        final String? imagePath = resultMap['imagePath'] as String?;
+        final String? uiTree = resultMap['uiTree'] as String?;
+        if (imagePath == null || uiTree == null) {
+          throw Exception("captureState returned incomplete data");
+        }
 
         // 2. Ask Brain
         _log("Analyzing...", color: Colors.blue);
+        await _updateForegroundStatus("Analyzing current screen");
         final AgentResponse response = await _brain.ask(
           imagePath,
           uiTree,
@@ -272,7 +301,7 @@ class _AgentScreenState extends State<AgentScreen> {
         );
 
         // Update visual feedback
-        setState(() {
+        _safeSetState(() {
           _currentAnalysis = response.analysis;
           _currentPlan = response.plan;
           _currentAction = response.action;
@@ -280,6 +309,7 @@ class _AgentScreenState extends State<AgentScreen> {
 
         _log("Analysis: ${response.analysis}", color: Colors.purple);
         _log("Plan: ${response.plan}", color: Colors.deepPurple);
+        await _updateForegroundStatus("Action: ${response.action}");
 
         // 3. Act
         if (response.elementId != null) {
@@ -295,12 +325,13 @@ class _AgentScreenState extends State<AgentScreen> {
             final y = bounds[1] + (bounds[3] / 2);
 
             // Show tap indicator
-            setState(() {
+            _safeSetState(() {
               _lastTapLocation = Offset(x.toDouble(), y.toDouble());
               _showTapIndicator = true;
             });
 
             _log("Action: Tap at ($x, $y)", color: Colors.green);
+            await _updateForegroundStatus("Tapping at ($x, $y)");
             await platform.invokeMethod('performAction', {
               'x': x.toInt(),
               'y': y.toInt()
@@ -309,7 +340,7 @@ class _AgentScreenState extends State<AgentScreen> {
             // Hide tap indicator after a delay
             Future.delayed(const Duration(milliseconds: 800), () {
               if (mounted) {
-                setState(() {
+                _safeSetState(() {
                   _showTapIndicator = false;
                 });
               }
@@ -353,6 +384,8 @@ class _AgentScreenState extends State<AgentScreen> {
 
   @override
   void dispose() {
+    _isRunning = false;
+    WidgetsBinding.instance.removeObserver(this);
     _brain.dispose();
     _goalController.dispose();
     _scrollController.dispose();

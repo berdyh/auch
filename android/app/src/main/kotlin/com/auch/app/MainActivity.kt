@@ -35,6 +35,11 @@ class MainActivity : FlutterActivity() {
                         AgentForegroundService.start(this)
                         result.success(true)
                     }
+                    "updateForegroundStatus" -> {
+                        val status = call.argument<String>("status") ?: "Agent running"
+                        AgentForegroundService.updateStatus(this, status)
+                        result.success(true)
+                    }
                     "stopForegroundService" -> {
                         AgentForegroundService.stop(this)
                         result.success(true)

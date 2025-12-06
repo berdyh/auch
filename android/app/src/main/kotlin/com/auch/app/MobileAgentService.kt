@@ -36,9 +36,12 @@ class MobileAgentService : AccessibilityService() {
             get() = instance != null
     }
 
+    private var tapHighlighter: TapHighlighter? = null
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        tapHighlighter = TapHighlighter(this)
     }
 
     override fun onInterrupt() {
@@ -48,6 +51,8 @@ class MobileAgentService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        tapHighlighter?.destroy()
+        tapHighlighter = null
     }
 
     fun captureState(): Map<String, Any> {
@@ -62,6 +67,7 @@ class MobileAgentService : AccessibilityService() {
     fun performAction(x: Int, y: Int): Boolean {
         val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
         val stroke = StrokeDescription(path, 0, 50)
+        tapHighlighter?.showTap(x, y)
         return dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
     }
 

@@ -1,20 +1,11 @@
 import 'package:cactus/cactus.dart';
 
-void main() {
-  CactusLM lm = CactusLM();
-  
-  // Check ChatMessage
-  final msg = ChatMessage(role: "user", content: "Hello");
-  
-  // Check if we can pass a callback
-  lm.downloadModel(
+/// Small probe to verify the Cactus API surface; not used by the app runtime.
+Future<void> main() async {
+  final lm = CactusLM();
+  await lm.downloadModel(
     model: "qwen3-0.6",
-    progress: (progress) {}, 
+    downloadProcessCallback: (progress, status, isError) {},
   );
-  
-  // Check if we can pass a callback
-  // lm.downloadModel(
-  //   model: "qwen3-0.6",
-  //   onProgress: (progress) {}, // Guessing param name
-  // );
+  lm.unload();
 }
